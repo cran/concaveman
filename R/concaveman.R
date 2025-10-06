@@ -16,7 +16,7 @@
 #' plot(polygons, add = TRUE)
 #'
 #' @export
-#' @importFrom magrittr "%>%"
+
 
 concaveman <- function(points, concavity, length_threshold) UseMethod("concaveman", points)
 
@@ -44,13 +44,34 @@ concaveman.matrix <- function(points, concavity = 2, length_threshold = 0) {
 #' @rdname concaveman
 concaveman.sf <- function(points, concavity = 2, length_threshold = 0) {
 
-  points %>%
-    dplyr::summarise(polygons =
-                concaveman(sf::st_coordinates(.), concavity, length_threshold) %>%
-                  as.matrix() %>%
-                  list %>%
-                  sf::st_polygon() %>%
-                  sf::st_sfc(crs = sf::st_crs(points))
-              )
+  crs <- sf::st_crs(points)
+  coords <- sf::st_coordinates(points)
+  res <- sf::st_cast(
+    sf::st_linestring(
+      concaveman(coords, concavity, length_threshold)
+      ),
+    "POLYGON"
+    )
+
+  res <- sf::st_as_sf(sf::st_sfc(res), crs = crs)
+  # to be backward compatible with previous tidyverse implementation
+  sf::st_geometry(res) <- "polygons"
+  return(res)
+}
+
+#' @export
+#' @rdname concaveman
+concaveman.sfc <- function(points, concavity = 2, length_threshold = 0) {
+
+  crs <- sf::st_crs(points)
+  coords <- sf::st_coordinates(points)
+  res <- sf::st_cast(
+    sf::st_linestring(
+      concaveman(coords, concavity, length_threshold)
+    ),
+    "POLYGON"
+  )
+
+  sf::st_sfc(res, crs = crs)
 }
 
